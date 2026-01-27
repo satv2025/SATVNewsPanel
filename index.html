@@ -91,6 +91,10 @@
 
     <script>
 
+        /* =========================
+           LOGIN
+        ========================= */
+
         async function login() {
             const { error } = await sb.auth.signInWithPassword({
                 email: email.value,
@@ -120,11 +124,40 @@
         }
 
 
-        /* 🔥 UPLOAD FIX REAL */
-        async function upload(file) {
+
+        /* =========================
+           HELPERS
+        ========================= */
+
+        // 🔥 UUID universal (funciona en TODOS los navegadores)
+        function uid() {
+            return Date.now().toString(36) +
+                Math.random().toString(36).substring(2, 9);
+        }
+
+        // 🔥 slug limpio
+        function slugify(text) {
+            return text
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "") // quitar tildes
+                .replace(/[^a-z0-9 ]/g, "")
+                .replaceAll(" ", "-");
+        }
+
+
+
+        /* =========================
+           UPLOAD STORAGE (FIX)
+        ========================= */
+
+        async function upload(file, tituloTexto) {
 
             const ext = file.name.split('.').pop();
-            const name = crypto.randomUUID() + "." + ext;
+
+            const safeName = slugify(tituloTexto);
+
+            const name = `${safeName}-${uid()}.${ext}`;
 
             const { error } = await sb
                 .storage
@@ -148,7 +181,11 @@
         }
 
 
-        /* 🔥 CREAR ARTICULO */
+
+        /* =========================
+           CREAR ARTICULO
+        ========================= */
+
         async function crear() {
 
             try {
@@ -156,14 +193,14 @@
                 let img = null;
 
                 if (imagenFile.files[0]) {
-                    img = await upload(imagenFile.files[0]);
+                    img = await upload(imagenFile.files[0], titulo.value);
                 }
 
                 const { error } = await sb
                     .from("articulos")
                     .insert({
                         titulo: titulo.value,
-                        slug: titulo.value.toLowerCase().replaceAll(" ", "-"),
+                        slug: slugify(titulo.value),
                         resumen: resumen.value,
                         contenido: contenido.value,
                         imagen: img,
@@ -184,7 +221,11 @@
         }
 
 
-        /* 🔥 LISTAR */
+
+        /* =========================
+           LISTAR
+        ========================= */
+
         async function cargar() {
 
             const { data, error } = await sb
@@ -199,22 +240,26 @@
             data.forEach(a => {
 
                 lista.innerHTML += `
-        <div class="card">
-            <b>${a.titulo}</b><br>
-            ${a.publicado ? "🟢 Publicado" : "🔴 Borrador"}<br>
+                <div class="card">
+                    <b>${a.titulo}</b><br>
+                    ${a.publicado ? "🟢 Publicado" : "🔴 Borrador"}<br>
 
-            <button onclick="del('${a.id}')">Eliminar</button>
+                    <button onclick="del('${a.id}')">Eliminar</button>
 
-            <a href="https://solargentinotv.com.ar/articulos/articulo.html?id=${a.id}" target="_blank">
-                <button>Ver</button>
-            </a>
-        </div>
-        `;
+                    <a href="https://solargentinotv.com.ar/articulos/articulo.html?id=${a.id}" target="_blank">
+                        <button>Ver</button>
+                    </a>
+                </div>
+            `;
             });
         }
 
 
-        /* 🔥 BORRAR */
+
+        /* =========================
+           BORRAR
+        ========================= */
+
         async function del(id) {
 
             if (!confirm("Eliminar artículo?")) return;
@@ -229,6 +274,11 @@
             location.reload();
         }
 
+
+
+        /* =========================
+           INIT
+        ========================= */
 
         init();
 

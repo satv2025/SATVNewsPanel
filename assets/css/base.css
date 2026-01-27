@@ -1,0 +1,394 @@
+/* =====================================================
+   FONT
+===================================================== */
+@import url('https://solargentinotv.com.ar/assets/fonts/Gilroy/Gilroy.css');
+
+
+/* =====================================================
+   THEME
+===================================================== */
+:root {
+    --bg: #f6f7fb;
+    --card: #ffffff;
+
+    --primary: #0078d4;
+
+    --border: #0078d4;
+    --border-soft: #0078d4;
+
+    --danger: #ef4444;
+
+    --text: #0f172a;
+    --muted: #6b7280;
+
+    --radius: 10px;
+}
+
+
+/* =====================================================
+   BASE
+===================================================== */
+* {
+    box-sizing: border-box;
+    font-family: 'Gilroy';
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+}
+
+
+/* =====================================================
+   TYPOGRAPHY
+===================================================== */
+h1 {
+    font-weight: 700;
+}
+
+h2 {
+    font-weight: 600;
+}
+
+
+/* =====================================================
+   LAYOUT
+===================================================== */
+.container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 40px 24px 80px;
+}
+
+
+/* =====================================================
+   TOPBAR
+===================================================== */
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding-bottom: 14px;
+    margin-bottom: 30px;
+
+    border-bottom: 2px solid var(--border);
+}
+
+
+/* =====================================================
+   CARDS
+===================================================== */
+.card {
+    background: var(--card);
+
+    padding: 24px;
+    margin-bottom: 22px;
+
+    border-radius: var(--radius);
+
+    border: 2px solid var(--border-soft);
+
+    box-shadow: none;
+}
+
+
+/* =====================================================
+   INPUTS
+===================================================== */
+input,
+textarea {
+    width: 100%;
+    margin: 8px 0;
+    padding: 12px 14px;
+
+    border-radius: 8px;
+    border: 2px solid var(--border-soft);
+
+    background: white;
+    color: var(--text);
+
+    transition: background .1s;
+}
+
+input:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--border);
+    background: #fafafa;
+}
+
+
+/* =====================================================
+   BUTTONS
+===================================================== */
+button {
+    background: white;
+    color: var(--primary);
+
+    border: 2px solid var(--primary);
+
+    padding: 10px 16px;
+    border-radius: 8px;
+
+    font-weight: 600;
+    cursor: pointer;
+
+    transition: background .1s, color .1s;
+}
+
+button:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.secondary {
+    border-color: var(--border-soft);
+    color: var(--muted);
+}
+
+.danger {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.danger:hover {
+    background: var(--danger);
+    color: white;
+}
+
+
+/* =====================================================
+   GRID
+===================================================== */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+}
+
+
+/* =====================================================
+   ARTICLE CARDS
+===================================================== */
+.articleCard {
+    background: white;
+
+    border: 2px solid var(--border-soft);
+
+    border-radius: 8px;
+    padding: 14px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.articleCard:hover {
+    border-color: var(--border);
+}
+
+.articleCard .row {
+    border-top: 2px solid var(--border-soft);
+    padding-top: 10px;
+}
+
+
+/* =====================================================
+   BADGES (BASE)
+===================================================== */
+.status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    width: fit-content;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    padding: 6px 10px;
+    border-radius: 999px;
+
+    border: none;
+    background: #f3f4f6;
+    color: var(--text);
+
+    line-height: 1;
+}
+
+/* puntito */
+.status::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: .9;
+}
+
+
+/* =====================================================
+   🔥 NUEVOS ESTADOS (reemplaza ok/draft)
+===================================================== */
+
+.status.publicado {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status.programado {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.status.revision {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status.borrador {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.status.eliminado {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+
+/* =====================================================
+   ROW
+===================================================== */
+.row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+
+/* =====================================================
+   UPLOAD
+===================================================== */
+.uploadBox {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+
+    padding: 28px;
+
+    text-align: center;
+    cursor: pointer;
+
+    background: white;
+}
+
+.uploadBox:hover {
+    background: #f3f4f6;
+}
+
+.uploadBox.dragover {
+    background: #eee;
+}
+
+
+/* =====================================================
+   PREVIEW
+===================================================== */
+.preview {
+    max-width: 100%;
+    margin-top: 12px;
+
+    border-radius: 8px;
+    border: 2px solid var(--border-soft);
+}
+
+
+/* =====================================================
+   🔥 THUMB IMAGEN LISTADO
+===================================================== */
+.thumb {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2px solid var(--border-soft);
+}
+
+.thumb.placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    background: #f3f4f6;
+    color: var(--muted);
+}
+
+
+/* =====================================================
+   🔥 DROPDOWN CUSTOM ESTADO
+===================================================== */
+.estadoDropdown {
+    position: relative;
+    width: 100%;
+    margin: 8px 0;
+}
+
+.estadoSelected {
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 2px solid var(--border-soft);
+    background: white;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.estadoMenu {
+    position: absolute;
+    top: 105%;
+    left: 0;
+    right: 0;
+
+    background: white;
+    border: 2px solid var(--border-soft);
+    border-radius: 8px;
+
+    display: flex;
+    flex-direction: column;
+    z-index: 50;
+}
+
+.estadoItem {
+    padding: 10px 14px;
+    cursor: pointer;
+}
+
+.estadoItem:hover {
+    background: #f3f4f6;
+}
+
+
+/* =====================================================
+   LOGIN
+===================================================== */
+.login {
+    max-width: 360px;
+    margin: 120px auto;
+
+    border: 2px solid var(--border-soft);
+    padding: 24px;
+}
+
+
+/* =====================================================
+   UTILS
+===================================================== */
+.hidden {
+    display: none;
+}
+
+button:focus {
+    outline: none !important;
+}

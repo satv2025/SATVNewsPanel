@@ -2,288 +2,91 @@
 <html lang="es">
 
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>Panel Admin SATV</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="https://solargentinotv.com.ar/assets/media/images/Logo SATV WEB BETA.ico"
-        type="image/x-icon">
-    <!-- SOLO 1 SUPABASE -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="https://solargentinotv.com.ar/assets/media/images/Logo SATV WEB BETA.ico">
+
+    <link rel="stylesheet" href="assets/css/base.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <script>
-        const sb = window.supabase.createClient(
-            "https://spzgxvkedsdjjhzzyysr.supabase.co",
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwemd4dmtlZHNkampoenp5eXNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1MzQwOTAsImV4cCI6MjA4NTExMDA5MH0.RgFghlZVV4Ww27rfh96nTiafDwRu9jtC3S6Y6aFdIxE"
-        );
-    </script>
-
-    <style>
-        body {
-            background: #111;
-            color: white;
-            font-family: sans-serif;
-            max-width: 900px;
-            margin: auto;
-            padding: 30px
-        }
-
-        input,
-        textarea {
-            width: 100%;
-            margin: 6px 0;
-            padding: 10px;
-            border-radius: 8px;
-            border: none
-        }
-
-        button {
-            background: #0078d4;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 8px;
-            cursor: pointer
-        }
-
-        .card {
-            background: #1b1b1b;
-            padding: 12px;
-            margin: 8px 0;
-            border-radius: 8px
-        }
-
-        .hidden {
-            display: none
-        }
-    </style>
 </head>
 
 <body>
 
-    <h1>Panel Admin</h1>
+    <div class="container">
 
-    <div id="loginBox">
-        <input id="email" placeholder="Email">
-        <input id="password" type="password" placeholder="Password">
-        <button onclick="login()">Entrar</button>
-    </div>
-
-    <div id="dash" class="hidden">
-
-        <button onclick="logout()">Cerrar sesión</button>
-
-        <h2>Nuevo artículo</h2>
-
-        <input id="titulo" placeholder="Título">
-        <textarea id="resumen" placeholder="Resumen"></textarea>
-        <textarea id="contenido" rows="8" placeholder="Contenido HTML"></textarea>
-        <input type="file" id="imagenFile">
-        <label><input type="checkbox" id="publicado"> Publicar</label>
-
-        <button onclick="crear()">Guardar</button>
-
-        <hr>
-
-        <h2>Artículos</h2>
-        <div id="lista"></div>
-
-    </div>
-
-    <script>
-
-        /* =========================
-           LOGIN
-        ========================= */
-
-        async function login() {
-            const { error } = await sb.auth.signInWithPassword({
-                email: email.value,
-                password: password.value
-            });
-
-            if (error) return alert(error.message);
-
-            init();
-        }
+        <header class="topbar">
+            <h1>🚀 Admin SATV</h1>
+            <button id="logoutBtn" class="danger hidden">Cerrar sesión</button>
+        </header>
 
 
-        async function logout() {
-            await sb.auth.signOut();
-            location.reload();
-        }
+        <!-- LOGIN -->
+        <section id="loginBox" class="card login">
+            <h2>Ingresar</h2>
+            <input id="email" placeholder="Email">
+            <input id="password" type="password" placeholder="Password">
+            <button id="loginBtn">Entrar</button>
+        </section>
 
 
-        async function init() {
-            const { data: { session } } = await sb.auth.getSession();
+        <!-- DASHBOARD -->
+        <section id="dash" class="hidden">
 
-            if (session) {
-                loginBox.classList.add("hidden");
-                dash.classList.remove("hidden");
-                cargar();
-            }
-        }
+            <!-- FORM -->
+            <div class="card formCard">
 
+                <h2 id="formTitle">Nuevo artículo</h2>
 
-
-        /* =========================
-           HELPERS
-        ========================= */
-
-        // 🔥 UUID universal (funciona en TODOS los navegadores)
-        function uid() {
-            return Date.now().toString(36) +
-                Math.random().toString(36).substring(2, 9);
-        }
-
-        // 🔥 slug limpio
-        function slugify(text) {
-            return text
-                .toLowerCase()
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "") // quitar tildes
-                .replace(/[^a-z0-9 ]/g, "")
-                .replaceAll(" ", "-");
-        }
+                <input id="titulo" placeholder="Título">
+                <textarea id="resumen" placeholder="Resumen"></textarea>
+                <textarea id="contenido" rows="8" placeholder="Contenido HTML"></textarea>
 
 
+                <!-- 🔥 REEMPLAZA CHECKBOX POR DROPDOWN CUSTOM -->
+                <div class="estadoDropdown" id="estadoDropdown">
+                    <div class="estadoSelected" id="estadoSelected">No publicado</div>
 
-        /* =========================
-           UPLOAD STORAGE (FIX)
-        ========================= */
-
-        async function upload(file, tituloTexto) {
-
-            const ext = file.name.split('.').pop();
-
-            const safeName = slugify(tituloTexto);
-
-            const name = `${safeName}-${uid()}.${ext}`;
-
-            const { error } = await sb
-                .storage
-                .from("articulos")
-                .upload(name, file, {
-                    cacheControl: "3600",
-                    upsert: false
-                });
-
-            if (error) {
-                alert("❌ Error subiendo imagen:\n" + error.message);
-                throw error;
-            }
-
-            const { data } = sb
-                .storage
-                .from("articulos")
-                .getPublicUrl(name);
-
-            return data.publicUrl;
-        }
-
-
-
-        /* =========================
-           CREAR ARTICULO
-        ========================= */
-
-        async function crear() {
-
-            try {
-
-                let img = null;
-
-                if (imagenFile.files[0]) {
-                    img = await upload(imagenFile.files[0], titulo.value);
-                }
-
-                const { error } = await sb
-                    .from("articulos")
-                    .insert({
-                        titulo: titulo.value,
-                        slug: slugify(titulo.value),
-                        resumen: resumen.value,
-                        contenido: contenido.value,
-                        imagen: img,
-                        publicado: publicado.checked
-                    });
-
-                if (error) {
-                    alert(error.message);
-                    return;
-                }
-
-                alert("✅ Artículo creado 🚀");
-                location.reload();
-
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
-
-
-        /* =========================
-           LISTAR
-        ========================= */
-
-        async function cargar() {
-
-            const { data, error } = await sb
-                .from("articulos")
-                .select("*")
-                .order("fecha_creacion", { ascending: false });
-
-            if (error) return console.error(error);
-
-            lista.innerHTML = "";
-
-            data.forEach(a => {
-
-                lista.innerHTML += `
-                <div class="card">
-                    <b>${a.titulo}</b><br>
-                    ${a.publicado ? "🟢 Publicado" : "🔴 Borrador"}<br>
-
-                    <button onclick="del('${a.id}')">Eliminar</button>
-
-                    <a href="https://solargentinotv.com.ar/articulos/articulo.html?id=${a.id}" target="_blank">
-                        <button>Ver</button>
-                    </a>
+                    <div class="estadoMenu hidden" id="estadoMenu">
+                        <div class="estadoItem" data-value="borrador">No publicado</div>
+                        <div class="estadoItem" data-value="revision">En revisión</div>
+                        <div class="estadoItem" data-value="programado">Programado</div>
+                        <div class="estadoItem" data-value="publicado">Publicado</div>
+                        <div class="estadoItem" data-value="eliminado">Eliminado</div>
+                    </div>
                 </div>
-            `;
-            });
-        }
 
 
+                <div class="uploadBox" id="uploadBox">
+                    <input type="file" id="imagenFile" hidden>
 
-        /* =========================
-           BORRAR
-        ========================= */
+                    <div class="uploadInner">
+                        📷 Subir imagen
+                        <span id="fileName">o arrastrar acá</span>
+                    </div>
+                </div>
 
-        async function del(id) {
+                <img id="preview" class="preview hidden">
 
-            if (!confirm("Eliminar artículo?")) return;
+                <div class="row">
+                    <button id="saveBtn">Guardar</button>
+                    <button id="cancelEdit" class="secondary hidden">Cancelar edición</button>
+                </div>
 
-            const { error } = await sb
-                .from("articulos")
-                .delete()
-                .eq("id", id);
-
-            if (error) return alert(error.message);
-
-            location.reload();
-        }
-
+            </div>
 
 
-        /* =========================
-           INIT
-        ========================= */
+            <!-- LISTA -->
+            <div class="card">
+                <h2>Artículos</h2>
+                <div id="lista" class="grid"></div>
+            </div>
 
-        init();
+        </section>
 
-    </script>
+    </div>
 
+    <script src="assets/js/operation.js"></script>
 </body>
 
 </html>

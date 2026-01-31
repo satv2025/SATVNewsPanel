@@ -21,28 +21,55 @@ let estadoActual = "borrador";
 
 
 /* =====================================================
-   🔥 PROGRESS BAR (NUEVO)
+   🔥 NUEVO — PROGRESS BAR (NO ROMPE NADA)
 ===================================================== */
 
-const progressBar = document.createElement("div");
-progressBar.className = "progress-bar";
-progressBar.innerHTML = `<progress value="0" max="100"></progress>`;
-document.body.appendChild(progressBar);
+let progressWrap = null;
+let progressEl = null;
 
-function setProgress(v) {
-    progressBar.style.display = "block";
-    progressBar.querySelector("progress").value = v;
-    if (v >= 100) setTimeout(() => progressBar.style.display = "none", 600);
+function ensureProgressUI() {
+    if (progressWrap && progressEl) return;
+
+    // lo insertamos dentro del form (si existe), o al final del body como fallback
+    const formCard = document.querySelector(".formCard") || document.body;
+
+    progressWrap = document.createElement("div");
+    progressWrap.className = "progress-bar";
+    progressWrap.style.display = "none";
+
+    progressEl = document.createElement("progress");
+    progressEl.max = 100;
+    progressEl.value = 0;
+
+    progressWrap.appendChild(progressEl);
+
+    // lo ponemos antes de los botones del form si existe, si no al final
+    const rowBtns = formCard.querySelector(".row") || null;
+    if (rowBtns) formCard.insertBefore(progressWrap, rowBtns);
+    else formCard.appendChild(progressWrap);
+}
+
+function setProgress(val) {
+    ensureProgressUI();
+    progressWrap.style.display = "block";
+    progressEl.value = Math.max(0, Math.min(100, val));
+}
+
+function hideProgressSoon() {
+    if (!progressWrap) return;
+    setTimeout(() => {
+        progressWrap.style.display = "none";
+        progressEl.value = 0;
+    }, 600);
 }
 
 
 /* =====================================================
-   🔥 GENERAR THUMBS (VERCEL API)
+   🔥 NUEVO — GENERAR THUMBS AUTOMÁTICOS (YOUTUBE STYLE)
 ===================================================== */
 
 async function generateThumbs(videoUrl) {
     try {
-
         const res = await fetch("/api/generate-thumbs", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -50,14 +77,14 @@ async function generateThumbs(videoUrl) {
         });
 
         if (!res.ok) {
-            const t = await res.text();
-            throw new Error(t);
+            const txt = await res.text().catch(() => "");
+            throw new Error(`API ${res.status}: ${txt || "sin respuesta"}`);
         }
 
         console.log("✅ thumbs generados:", videoUrl);
 
     } catch (e) {
-        console.error("❌ thumbs error:", e);
+        console.error("❌ thumbs error:", e.message || e);
     }
 }
 
@@ -122,6 +149,25 @@ init();
 
 
 /* =====================================================
+   DROPDOWN ESTADO
+===================================================== */
+
+const estadoSelected = $("estadoSelected");
+const estadoMenu = $("estadoMenu");
+
+estadoSelected.onclick = () =>
+    estadoMenu.classList.toggle("hidden");
+
+document.querySelectorAll(".estadoItem").forEach(item => {
+    item.onclick = () => {
+        estadoActual = item.dataset.value;
+        estadoSelected.innerText = item.innerText;
+        estadoMenu.classList.add("hidden");
+    };
+});
+
+
+/* =====================================================
    IMAGEN
 ===================================================== */
 
@@ -136,6 +182,7 @@ fileInput.onchange = () => {
     if (!file) return;
 
     currentFile = file;
+
     preview.src = URL.createObjectURL(file);
     preview.classList.remove("hidden");
 };
@@ -158,10 +205,10 @@ videosInput.onchange = () => {
 
 
 /* =====================================================
-   STORAGE (CON PROGRESS REAL)
+   STORAGE
 ===================================================== */
 
-async function upload(bucket, file, nameHint, progressStart, progressEnd) {
+async function upload(bucket, file, nameHint) {
 
     const ext = file.name.split(".").pop();
     const name = `${slugify(nameHint)}-${uid()}.${ext}`;
@@ -172,14 +219,12 @@ async function upload(bucket, file, nameHint, progressStart, progressEnd) {
 
     if (error) throw error;
 
-    setProgress(progressEnd);
-
     return sb.storage.from(bucket).getPublicUrl(name).data.publicUrl;
 }
 
 
 /* =====================================================
-   SAVE ARTICLE (MEJORADO + PROGRESS)
+   SAVE ARTICLE
 ===================================================== */
 
 $("saveBtn").onclick = saveArticle;
@@ -193,7 +238,9 @@ async function saveArticle() {
         let img = null;
 
         if (currentFile) {
-            img = await upload("articulos", currentFile, $("titulo").value, 5, 20);
+            setProgress(10);
+            img = await upload("articulos", currentFile, $("titulo").value);
+            setProgress(20);
         }
 
         const payload = {
@@ -208,14 +255,21 @@ async function saveArticle() {
 
         let articuloId;
 
-        /* INSERT / UPDATE */
+
+        /* ---------- INSERT / UPDATE ---------- */
 
         if (editId) {
 
-            await sb.from("articulos").update(payload).eq("id", editId);
+            await sb.from("articulos")
+                .update(payload)
+                .eq("id", editId);
+
             articuloId = editId;
 
-            await sb.from("articulos_videos").delete().eq("articulo_id", articuloId);
+            // borrar videos viejos SOLO en edición
+            await sb.from("articulos_videos")
+                .delete()
+                .eq("articulo_id", articuloId);
 
         } else {
 
@@ -231,20 +285,25 @@ async function saveArticle() {
         setProgress(30);
 
 
-        /* VIDEOS */
+        /* =====================================================
+           🔥 VIDEOS + AUTO THUMBNAILS
+        ===================================================== */
 
         for (let i = 0; i < currentVideos.length; i++) {
 
-            const pctStart = 30 + (i * 50 / currentVideos.length);
-            const pctEnd = pctStart + (50 / currentVideos.length);
+            // progreso aproximado (no hay progress real en supabase-js upload)
+            const p1 = 30 + Math.floor((i / Math.max(1, currentVideos.length)) * 50);
+            const p2 = 30 + Math.floor(((i + 1) / Math.max(1, currentVideos.length)) * 50);
+
+            setProgress(p1);
 
             const url = await upload(
                 "videos-articulos",
                 currentVideos[i],
-                $("titulo").value,
-                pctStart,
-                pctEnd
+                $("titulo").value
             );
+
+            setProgress(p2);
 
             await sb.from("articulos_videos").insert({
                 articulo_id: articuloId,
@@ -252,15 +311,18 @@ async function saveArticle() {
                 url
             });
 
+            // 🔥 GENERA thumbs automáticamente (vercel)
             await generateThumbs(url);
         }
 
         setProgress(100);
+        hideProgressSoon();
 
         resetForm();
         cargar();
 
     } catch (e) {
+        hideProgressSoon();
         alert("Error: " + e.message);
         console.error(e);
     }
@@ -268,17 +330,18 @@ async function saveArticle() {
 
 
 /* =====================================================
-   LISTAR / EDITAR / RESET / DELETE
-   (NO TOQUÉ NADA)
+   LISTAR
 ===================================================== */
 
 async function cargar() {
 
-    const { data } = await sb
+    const { data, error } = await sb
         .from("articulos")
         .select("*")
         .neq("estado", "eliminado")
         .order("fecha_creacion", { ascending: false });
+
+    if (error) return console.error(error);
 
     const lista = $("lista");
     lista.innerHTML = "";
@@ -307,21 +370,62 @@ async function cargar() {
     });
 }
 
+
+/* =====================================================
+   EDITAR
+===================================================== */
+
 function editar(a) {
+
     editId = a.id;
+
     $("titulo").value = a.titulo;
     $("resumen").value = a.resumen;
     $("contenido").value = a.contenido;
+
+    estadoActual = a.estado;
+    estadoSelected.innerText = a.estado;
+
+    if (a.imagen) {
+        preview.src = a.imagen;
+        preview.classList.remove("hidden");
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+
+/* =====================================================
+   RESET
+===================================================== */
+
 function resetForm() {
+
     editId = null;
     currentFile = null;
     currentVideos = [];
+    estadoActual = "borrador";
+
+    $("titulo").value = "";
+    $("resumen").value = "";
+    $("contenido").value = "";
+
+    preview.classList.add("hidden");
+    videoCount.innerText = "o arrastrar acá";
 }
 
+
+/* =====================================================
+   DELETE
+===================================================== */
+
 async function eliminar(id) {
+
     if (!confirm("Eliminar artículo?")) return;
-    await sb.from("articulos").update({ estado: "eliminado" }).eq("id", id);
+
+    await sb.from("articulos")
+        .update({ estado: "eliminado" })
+        .eq("id", id);
+
     cargar();
 }

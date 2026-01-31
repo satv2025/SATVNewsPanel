@@ -392,3 +392,64 @@ button:hover {
 button:focus {
     outline: none !important;
 }
+
+/* =====================================================
+   🔥 UPLOAD PROGRESS SATV STYLE
+===================================================== */
+
+#uploadProgressBox {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#uploadText {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+/* progress base */
+#uploadProgress {
+    width: 100%;
+    height: 14px;
+    border-radius: 999px;
+    overflow: hidden;
+
+    appearance: none;
+    border: 2px solid var(--border-soft);
+    background: #f3f4f6;
+}
+
+/* Chrome / Edge */
+#uploadProgress::-webkit-progress-bar {
+    background: #f3f4f6;
+}
+
+#uploadProgress::-webkit-progress-value {
+    background: var(--primary);
+    transition: width .2s ease;
+}
+
+/* Firefox */
+#uploadProgress::-moz-progress-bar {
+    background: var(--primary);
+}
+
+/* animación sutil */
+#uploadProgressBox:not(.hidden) {
+    animation: fadeInProgress .15s ease;
+}
+
+@keyframes fadeInProgress {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

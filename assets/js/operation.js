@@ -4,7 +4,7 @@
 
 const sb = window.supabase.createClient(
     "https://api.solargentinotv.com.ar",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwemd4dmtlZHNkampoenp5eXNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1MzQwOTAsImV4cCI6MjA4NTExMDA5MH0.RgFghlZVV4Ww27rfh96nTiafDwRu9jtC3S6Y6aFdIxE"
+    "TU_ANON_KEY"
 );
 
 const $ = id => document.getElementById(id);
@@ -21,7 +21,26 @@ let estadoActual = "borrador";
 
 
 /* =====================================================
-   🔥 NUEVO — GENERAR THUMBS AUTOMÁTICOS (YOUTUBE STYLE)
+   🔥 PROGRESS UI
+===================================================== */
+
+function showProgress(text = "Subiendo…") {
+    $("uploadProgressBox").classList.remove("hidden");
+    $("uploadProgress").value = 0;
+    $("uploadText").innerText = text;
+}
+
+function setProgress(p) {
+    $("uploadProgress").value = p;
+}
+
+function hideProgress() {
+    $("uploadProgressBox").classList.add("hidden");
+}
+
+
+/* =====================================================
+   🔥 GENERAR VTT → VERCEL API
 ===================================================== */
 
 async function generateThumbs(videoUrl) {
@@ -31,13 +50,12 @@ async function generateThumbs(videoUrl) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ videoUrl })
         });
-
-        console.log("✅ thumbs generados:", videoUrl);
-
+        console.log("✅ VTT generado");
     } catch (e) {
-        console.error("❌ thumbs error:", e);
+        console.error("❌ thumbs error", e);
     }
 }
+
 
 /* =====================================================
    UTILS
@@ -53,6 +71,53 @@ function slugify(text) {
 
 function uid() {
     return Date.now() + "-" + Math.random().toString(36).slice(2);
+}
+
+
+/* =====================================================
+   🔥 UPLOAD CON PROGRESS REAL (XHR)
+===================================================== */
+
+async function upload(bucket, file, nameHint) {
+
+    const ext = file.name.split(".").pop();
+    const name = `${slugify(nameHint)}-${uid()}.${ext}`;
+
+    const { data: { session } } = await sb.auth.getSession();
+    const token = session.access_token;
+
+    return new Promise((resolve, reject) => {
+
+        const xhr = new XMLHttpRequest();
+
+        const url = `https://api.solargentinotv.com.ar/storage/v1/object/${bucket}/${name}`;
+
+        xhr.open("POST", url);
+
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.setRequestHeader("x-upsert", "true");
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = (e.loaded / e.total) * 100;
+                setProgress(percent);
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                const publicUrl =
+                    `https://api.solargentinotv.com.ar/storage/v1/object/public/${bucket}/${name}`;
+                resolve(publicUrl);
+            } else {
+                reject(xhr.responseText);
+            }
+        };
+
+        xhr.onerror = reject;
+
+        xhr.send(file);
+    });
 }
 
 
@@ -99,78 +164,19 @@ init();
 
 
 /* =====================================================
-   DROPDOWN ESTADO
+   INPUTS
 ===================================================== */
 
-const estadoSelected = $("estadoSelected");
-const estadoMenu = $("estadoMenu");
+$("uploadBox").onclick = () => $("imagenFile").click();
+$("videoUploadBox").onclick = () => $("videosInput").click();
 
-estadoSelected.onclick = () =>
-    estadoMenu.classList.toggle("hidden");
-
-document.querySelectorAll(".estadoItem").forEach(item => {
-    item.onclick = () => {
-        estadoActual = item.dataset.value;
-        estadoSelected.innerText = item.innerText;
-        estadoMenu.classList.add("hidden");
-    };
-});
-
-
-/* =====================================================
-   IMAGEN
-===================================================== */
-
-const uploadBox = $("uploadBox");
-const fileInput = $("imagenFile");
-const preview = $("preview");
-
-uploadBox.onclick = () => fileInput.click();
-
-fileInput.onchange = () => {
-    const file = fileInput.files[0];
-    if (!file) return;
-
-    currentFile = file;
-
-    preview.src = URL.createObjectURL(file);
-    preview.classList.remove("hidden");
+$("imagenFile").onchange = () => {
+    currentFile = $("imagenFile").files[0];
 };
 
-
-/* =====================================================
-   VIDEOS
-===================================================== */
-
-const videoBox = $("videoUploadBox");
-const videosInput = $("videosInput");
-const videoCount = $("videoCount");
-
-videoBox.onclick = () => videosInput.click();
-
-videosInput.onchange = () => {
-    currentVideos = [...videosInput.files];
-    videoCount.innerText = currentVideos.length + " archivos";
+$("videosInput").onchange = () => {
+    currentVideos = [...$("videosInput").files];
 };
-
-
-/* =====================================================
-   STORAGE
-===================================================== */
-
-async function upload(bucket, file, nameHint) {
-
-    const ext = file.name.split(".").pop();
-    const name = `${slugify(nameHint)}-${uid()}.${ext}`;
-
-    const { error } = await sb.storage
-        .from(bucket)
-        .upload(name, file, { upsert: true });
-
-    if (error) throw error;
-
-    return sb.storage.from(bucket).getPublicUrl(name).data.publicUrl;
-}
 
 
 /* =====================================================
@@ -182,6 +188,8 @@ $("saveBtn").onclick = saveArticle;
 async function saveArticle() {
 
     try {
+
+        showProgress("Subiendo archivos…");
 
         let img = null;
 
@@ -201,9 +209,6 @@ async function saveArticle() {
 
         let articuloId;
 
-
-        /* ---------- INSERT / UPDATE ---------- */
-
         if (editId) {
 
             await sb.from("articulos")
@@ -211,10 +216,6 @@ async function saveArticle() {
                 .eq("id", editId);
 
             articuloId = editId;
-
-            await sb.from("articulos_videos")
-                .delete()
-                .eq("articulo_id", articuloId);
 
         } else {
 
@@ -228,11 +229,11 @@ async function saveArticle() {
         }
 
 
-        /* =====================================================
-           🔥 VIDEOS + AUTO THUMBNAILS
-        ===================================================== */
+        /* 🔥 VIDEOS */
 
         for (let i = 0; i < currentVideos.length; i++) {
+
+            $("uploadText").innerText = `Subiendo video ${i + 1}/${currentVideos.length}`;
 
             const url = await upload(
                 "videos-articulos",
@@ -246,15 +247,17 @@ async function saveArticle() {
                 url
             });
 
-            // 🔥 GENERA thumbs automáticamente
             await generateThumbs(url);
         }
+
+        hideProgress();
 
         resetForm();
         cargar();
 
     } catch (e) {
-        alert("Error: " + e.message);
+        hideProgress();
+        alert("Error: " + e);
     }
 }
 
@@ -265,13 +268,10 @@ async function saveArticle() {
 
 async function cargar() {
 
-    const { data, error } = await sb
+    const { data } = await sb
         .from("articulos")
         .select("*")
-        .neq("estado", "eliminado")
-        .order("fecha_creacion", { ascending: false });
-
-    if (error) return console.error(error);
+        .neq("estado", "eliminado");
 
     const lista = $("lista");
     lista.innerHTML = "";
@@ -279,49 +279,14 @@ async function cargar() {
     data.forEach(a => {
 
         const card = document.createElement("div");
-        card.className = "articleCard";
 
         card.innerHTML = `
-      ${a.imagen
-                ? `<img src="${a.imagen}" class="thumb">`
-                : `<div class="thumb placeholder">Sin imagen</div>`}
-      <div class="articleTitle">${a.titulo}</div>
-      <div class="status ${a.estado}">${a.estado}</div>
-      <div class="row">
-        <button class="editBtn">Editar</button>
-        <button class="danger delBtn">Eliminar</button>
-      </div>
-    `;
-
-        card.querySelector(".editBtn").onclick = () => editar(a);
-        card.querySelector(".delBtn").onclick = () => eliminar(a.id);
+        <div>${a.titulo}</div>
+        <button onclick="eliminar('${a.id}')">Eliminar</button>
+        `;
 
         lista.appendChild(card);
     });
-}
-
-
-/* =====================================================
-   EDITAR
-===================================================== */
-
-function editar(a) {
-
-    editId = a.id;
-
-    $("titulo").value = a.titulo;
-    $("resumen").value = a.resumen;
-    $("contenido").value = a.contenido;
-
-    estadoActual = a.estado;
-    estadoSelected.innerText = a.estado;
-
-    if (a.imagen) {
-        preview.src = a.imagen;
-        preview.classList.remove("hidden");
-    }
-
-    window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 
@@ -330,18 +295,8 @@ function editar(a) {
 ===================================================== */
 
 function resetForm() {
-
-    editId = null;
     currentFile = null;
     currentVideos = [];
-    estadoActual = "borrador";
-
-    $("titulo").value = "";
-    $("resumen").value = "";
-    $("contenido").value = "";
-
-    preview.classList.add("hidden");
-    videoCount.innerText = "o arrastrar acá";
 }
 
 
@@ -350,9 +305,6 @@ function resetForm() {
 ===================================================== */
 
 async function eliminar(id) {
-
-    if (!confirm("Eliminar artículo?")) return;
-
     await sb.from("articulos")
         .update({ estado: "eliminado" })
         .eq("id", id);

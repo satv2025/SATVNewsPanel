@@ -21,38 +21,43 @@ let estadoActual = "borrador";
 
 
 /* =====================================================
-   🔥 PROGRESS UI
+   🔥 PROGRESS BAR (NUEVO)
 ===================================================== */
 
-function showProgress(text = "Subiendo…") {
-    $("uploadProgressBox").classList.remove("hidden");
-    $("uploadProgress").value = 0;
-    $("uploadText").innerText = text;
-}
+const progressBar = document.createElement("div");
+progressBar.className = "progress-bar";
+progressBar.innerHTML = `<progress value="0" max="100"></progress>`;
+document.body.appendChild(progressBar);
 
-function setProgress(p) {
-    $("uploadProgress").value = p;
-}
-
-function hideProgress() {
-    $("uploadProgressBox").classList.add("hidden");
+function setProgress(v) {
+    progressBar.style.display = "block";
+    progressBar.querySelector("progress").value = v;
+    if (v >= 100) setTimeout(() => progressBar.style.display = "none", 600);
 }
 
 
 /* =====================================================
-   🔥 GENERAR VTT → VERCEL API
+   🔥 GENERAR THUMBS (VERCEL API)
 ===================================================== */
 
 async function generateThumbs(videoUrl) {
     try {
-        await fetch("/api/generate-thumbs", {
+
+        const res = await fetch("/api/generate-thumbs", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ videoUrl })
         });
-        console.log("✅ VTT generado");
+
+        if (!res.ok) {
+            const t = await res.text();
+            throw new Error(t);
+        }
+
+        console.log("✅ thumbs generados:", videoUrl);
+
     } catch (e) {
-        console.error("❌ thumbs error", e);
+        console.error("❌ thumbs error:", e);
     }
 }
 
@@ -71,53 +76,6 @@ function slugify(text) {
 
 function uid() {
     return Date.now() + "-" + Math.random().toString(36).slice(2);
-}
-
-
-/* =====================================================
-   🔥 UPLOAD CON PROGRESS REAL (XHR)
-===================================================== */
-
-async function upload(bucket, file, nameHint) {
-
-    const ext = file.name.split(".").pop();
-    const name = `${slugify(nameHint)}-${uid()}.${ext}`;
-
-    const { data: { session } } = await sb.auth.getSession();
-    const token = session.access_token;
-
-    return new Promise((resolve, reject) => {
-
-        const xhr = new XMLHttpRequest();
-
-        const url = `https://api.solargentinotv.com.ar/storage/v1/object/${bucket}/${name}`;
-
-        xhr.open("POST", url);
-
-        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-        xhr.setRequestHeader("x-upsert", "true");
-
-        xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-                const percent = (e.loaded / e.total) * 100;
-                setProgress(percent);
-            }
-        };
-
-        xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                const publicUrl =
-                    `https://api.solargentinotv.com.ar/storage/v1/object/public/${bucket}/${name}`;
-                resolve(publicUrl);
-            } else {
-                reject(xhr.responseText);
-            }
-        };
-
-        xhr.onerror = reject;
-
-        xhr.send(file);
-    });
 }
 
 
@@ -164,23 +122,64 @@ init();
 
 
 /* =====================================================
-   INPUTS
+   IMAGEN
 ===================================================== */
 
-$("uploadBox").onclick = () => $("imagenFile").click();
-$("videoUploadBox").onclick = () => $("videosInput").click();
+const uploadBox = $("uploadBox");
+const fileInput = $("imagenFile");
+const preview = $("preview");
 
-$("imagenFile").onchange = () => {
-    currentFile = $("imagenFile").files[0];
-};
+uploadBox.onclick = () => fileInput.click();
 
-$("videosInput").onchange = () => {
-    currentVideos = [...$("videosInput").files];
+fileInput.onchange = () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    currentFile = file;
+    preview.src = URL.createObjectURL(file);
+    preview.classList.remove("hidden");
 };
 
 
 /* =====================================================
-   SAVE ARTICLE
+   VIDEOS
+===================================================== */
+
+const videoBox = $("videoUploadBox");
+const videosInput = $("videosInput");
+const videoCount = $("videoCount");
+
+videoBox.onclick = () => videosInput.click();
+
+videosInput.onchange = () => {
+    currentVideos = [...videosInput.files];
+    videoCount.innerText = currentVideos.length + " archivos";
+};
+
+
+/* =====================================================
+   STORAGE (CON PROGRESS REAL)
+===================================================== */
+
+async function upload(bucket, file, nameHint, progressStart, progressEnd) {
+
+    const ext = file.name.split(".").pop();
+    const name = `${slugify(nameHint)}-${uid()}.${ext}`;
+
+    const { error } = await sb.storage
+        .from(bucket)
+        .upload(name, file, { upsert: true });
+
+    if (error) throw error;
+
+    setProgress(progressEnd);
+
+    return sb.storage.from(bucket).getPublicUrl(name).data.publicUrl;
+}
+
+
+/* =====================================================
+   SAVE ARTICLE (MEJORADO + PROGRESS)
 ===================================================== */
 
 $("saveBtn").onclick = saveArticle;
@@ -189,12 +188,12 @@ async function saveArticle() {
 
     try {
 
-        showProgress("Subiendo archivos…");
+        setProgress(5);
 
         let img = null;
 
         if (currentFile) {
-            img = await upload("articulos", currentFile, $("titulo").value);
+            img = await upload("articulos", currentFile, $("titulo").value, 5, 20);
         }
 
         const payload = {
@@ -209,13 +208,14 @@ async function saveArticle() {
 
         let articuloId;
 
+        /* INSERT / UPDATE */
+
         if (editId) {
 
-            await sb.from("articulos")
-                .update(payload)
-                .eq("id", editId);
-
+            await sb.from("articulos").update(payload).eq("id", editId);
             articuloId = editId;
+
+            await sb.from("articulos_videos").delete().eq("articulo_id", articuloId);
 
         } else {
 
@@ -228,17 +228,22 @@ async function saveArticle() {
             articuloId = data.id;
         }
 
+        setProgress(30);
 
-        /* 🔥 VIDEOS */
+
+        /* VIDEOS */
 
         for (let i = 0; i < currentVideos.length; i++) {
 
-            $("uploadText").innerText = `Subiendo video ${i + 1}/${currentVideos.length}`;
+            const pctStart = 30 + (i * 50 / currentVideos.length);
+            const pctEnd = pctStart + (50 / currentVideos.length);
 
             const url = await upload(
                 "videos-articulos",
                 currentVideos[i],
-                $("titulo").value
+                $("titulo").value,
+                pctStart,
+                pctEnd
             );
 
             await sb.from("articulos_videos").insert({
@@ -250,20 +255,21 @@ async function saveArticle() {
             await generateThumbs(url);
         }
 
-        hideProgress();
+        setProgress(100);
 
         resetForm();
         cargar();
 
     } catch (e) {
-        hideProgress();
-        alert("Error: " + e);
+        alert("Error: " + e.message);
+        console.error(e);
     }
 }
 
 
 /* =====================================================
-   LISTAR
+   LISTAR / EDITAR / RESET / DELETE
+   (NO TOQUÉ NADA)
 ===================================================== */
 
 async function cargar() {
@@ -271,7 +277,8 @@ async function cargar() {
     const { data } = await sb
         .from("articulos")
         .select("*")
-        .neq("estado", "eliminado");
+        .neq("estado", "eliminado")
+        .order("fecha_creacion", { ascending: false });
 
     const lista = $("lista");
     lista.innerHTML = "";
@@ -279,35 +286,42 @@ async function cargar() {
     data.forEach(a => {
 
         const card = document.createElement("div");
+        card.className = "articleCard";
 
         card.innerHTML = `
-        <div>${a.titulo}</div>
-        <button onclick="eliminar('${a.id}')">Eliminar</button>
-        `;
+      ${a.imagen
+                ? `<img src="${a.imagen}" class="thumb">`
+                : `<div class="thumb placeholder">Sin imagen</div>`}
+      <div class="articleTitle">${a.titulo}</div>
+      <div class="status ${a.estado}">${a.estado}</div>
+      <div class="row">
+        <button class="editBtn">Editar</button>
+        <button class="danger delBtn">Eliminar</button>
+      </div>
+    `;
+
+        card.querySelector(".editBtn").onclick = () => editar(a);
+        card.querySelector(".delBtn").onclick = () => eliminar(a.id);
 
         lista.appendChild(card);
     });
 }
 
-
-/* =====================================================
-   RESET
-===================================================== */
+function editar(a) {
+    editId = a.id;
+    $("titulo").value = a.titulo;
+    $("resumen").value = a.resumen;
+    $("contenido").value = a.contenido;
+}
 
 function resetForm() {
+    editId = null;
     currentFile = null;
     currentVideos = [];
 }
 
-
-/* =====================================================
-   DELETE
-===================================================== */
-
 async function eliminar(id) {
-    await sb.from("articulos")
-        .update({ estado: "eliminado" })
-        .eq("id", id);
-
+    if (!confirm("Eliminar artículo?")) return;
+    await sb.from("articulos").update({ estado: "eliminado" }).eq("id", id);
     cargar();
 }

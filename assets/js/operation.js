@@ -3,31 +3,48 @@
 ===================================================== */
 
 const sb = window.supabase.createClient(
-    "https://spzgxvkedsdjjhzzyysr.supabase.co",
+    "https://api.solargentinotv.com.ar",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwemd4dmtlZHNkampoenp5eXNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1MzQwOTAsImV4cCI6MjA4NTExMDA5MH0.RgFghlZVV4Ww27rfh96nTiafDwRu9jtC3S6Y6aFdIxE"
 );
 
+const $ = id => document.getElementById(id);
+
 
 /* =====================================================
-   HELPERS
+   STATE
 ===================================================== */
-
-const $ = id => document.getElementById(id);
 
 let editId = null;
 let currentFile = null;
-
-/* 🔥 NUEVO */
+let currentVideos = [];
 let estadoActual = "borrador";
 
+
+/* =====================================================
+   🔥 NUEVO — GENERAR THUMBS AUTOMÁTICOS (YOUTUBE STYLE)
+===================================================== */
+
+async function generateThumbs(videoUrl) {
+    try {
+        await fetch("/api/generate-thumbs", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ videoUrl })
+        });
+
+        console.log("✅ thumbs generados:", videoUrl);
+
+    } catch (e) {
+        console.error("❌ thumbs error:", e);
+    }
+}
 
 /* =====================================================
    UTILS
 ===================================================== */
 
 function slugify(text) {
-    return text
-        .toLowerCase()
+    return text.toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-z0-9 ]/g, "")
@@ -53,7 +70,6 @@ async function login() {
     });
 
     if (error) return alert(error.message);
-
     init();
 }
 
@@ -64,124 +80,101 @@ async function logout() {
 
 
 /* =====================================================
-   INIT SESSION
+   INIT
 ===================================================== */
 
 async function init() {
 
     const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
 
-    if (session) {
-        $("loginBox").classList.add("hidden");
-        $("dash").classList.remove("hidden");
-        $("logoutBtn").classList.remove("hidden");
+    $("loginBox").classList.add("hidden");
+    $("dash").classList.remove("hidden");
+    $("logoutBtn").classList.remove("hidden");
 
-        cargar();
-    }
+    cargar();
 }
 
 init();
 
 
 /* =====================================================
-   🔥 DROPDOWN CUSTOM ESTADO (NUEVO)
+   DROPDOWN ESTADO
 ===================================================== */
 
 const estadoSelected = $("estadoSelected");
 const estadoMenu = $("estadoMenu");
 
-if (estadoSelected) {
+estadoSelected.onclick = () =>
+    estadoMenu.classList.toggle("hidden");
 
-    estadoSelected.onclick = () =>
-        estadoMenu.classList.toggle("hidden");
-
-    document.querySelectorAll(".estadoItem").forEach(item => {
-        item.onclick = () => {
-            estadoActual = item.dataset.value;
-            estadoSelected.innerText = item.innerText;
-            estadoMenu.classList.add("hidden");
-        };
-    });
-
-    document.addEventListener("click", e => {
-        if (!$("estadoDropdown").contains(e.target)) {
-            estadoMenu.classList.add("hidden");
-        }
-    });
-}
+document.querySelectorAll(".estadoItem").forEach(item => {
+    item.onclick = () => {
+        estadoActual = item.dataset.value;
+        estadoSelected.innerText = item.innerText;
+        estadoMenu.classList.add("hidden");
+    };
+});
 
 
 /* =====================================================
-   UPLOAD (drag & drop)
+   IMAGEN
 ===================================================== */
 
 const uploadBox = $("uploadBox");
 const fileInput = $("imagenFile");
-const fileName = $("fileName");
 const preview = $("preview");
 
 uploadBox.onclick = () => fileInput.click();
 
-fileInput.onchange = () => handleFile(fileInput.files[0]);
-
-uploadBox.ondragover = e => {
-    e.preventDefault();
-    uploadBox.classList.add("dragover");
-};
-
-uploadBox.ondragleave = () =>
-    uploadBox.classList.remove("dragover");
-
-uploadBox.ondrop = e => {
-    e.preventDefault();
-    uploadBox.classList.remove("dragover");
-
-    const file = e.dataTransfer.files[0];
-    fileInput.files = e.dataTransfer.files;
-
-    handleFile(file);
-};
-
-function handleFile(file) {
-
+fileInput.onchange = () => {
+    const file = fileInput.files[0];
     if (!file) return;
 
     currentFile = file;
 
-    fileName.innerText = file.name;
-
     preview.src = URL.createObjectURL(file);
     preview.classList.remove("hidden");
-}
+};
+
+
+/* =====================================================
+   VIDEOS
+===================================================== */
+
+const videoBox = $("videoUploadBox");
+const videosInput = $("videosInput");
+const videoCount = $("videoCount");
+
+videoBox.onclick = () => videosInput.click();
+
+videosInput.onchange = () => {
+    currentVideos = [...videosInput.files];
+    videoCount.innerText = currentVideos.length + " archivos";
+};
 
 
 /* =====================================================
    STORAGE
 ===================================================== */
 
-async function upload(file, tituloTexto) {
+async function upload(bucket, file, nameHint) {
 
     const ext = file.name.split(".").pop();
-    const name = `${slugify(tituloTexto)}-${uid()}.${ext}`;
+    const name = `${slugify(nameHint)}-${uid()}.${ext}`;
 
-    const { error } = await sb
-        .storage
-        .from("articulos")
-        .upload(name, file);
+    const { error } = await sb.storage
+        .from(bucket)
+        .upload(name, file, { upsert: true });
 
     if (error) throw error;
 
-    const { data } = sb
-        .storage
-        .from("articulos")
-        .getPublicUrl(name);
-
-    return data.publicUrl;
+    return sb.storage.from(bucket).getPublicUrl(name).data.publicUrl;
 }
 
 
 /* =====================================================
-   SAVE (CREATE + UPDATE)
+   SAVE ARTICLE
 ===================================================== */
 
 $("saveBtn").onclick = saveArticle;
@@ -193,10 +186,9 @@ async function saveArticle() {
         let img = null;
 
         if (currentFile) {
-            img = await upload(currentFile, $("titulo").value);
+            img = await upload("articulos", currentFile, $("titulo").value);
         }
 
-        /* 🔥 CAMBIO: publicado → estado */
         const payload = {
             titulo: $("titulo").value,
             slug: slugify($("titulo").value),
@@ -207,22 +199,62 @@ async function saveArticle() {
 
         if (img) payload.imagen = img;
 
-        let res;
+        let articuloId;
+
+
+        /* ---------- INSERT / UPDATE ---------- */
 
         if (editId) {
-            res = await sb.from("articulos").update(payload).eq("id", editId);
+
+            await sb.from("articulos")
+                .update(payload)
+                .eq("id", editId);
+
+            articuloId = editId;
+
+            await sb.from("articulos_videos")
+                .delete()
+                .eq("articulo_id", articuloId);
+
         } else {
-            res = await sb.from("articulos").insert(payload);
+
+            const { data } = await sb
+                .from("articulos")
+                .insert(payload)
+                .select()
+                .single();
+
+            articuloId = data.id;
         }
 
-        if (res.error) return alert(res.error.message);
+
+        /* =====================================================
+           🔥 VIDEOS + AUTO THUMBNAILS
+        ===================================================== */
+
+        for (let i = 0; i < currentVideos.length; i++) {
+
+            const url = await upload(
+                "videos-articulos",
+                currentVideos[i],
+                $("titulo").value
+            );
+
+            await sb.from("articulos_videos").insert({
+                articulo_id: articuloId,
+                orden: i + 1,
+                url
+            });
+
+            // 🔥 GENERA thumbs automáticamente
+            await generateThumbs(url);
+        }
 
         resetForm();
         cargar();
 
-    } catch (err) {
-        console.error(err);
-        alert("Error guardando");
+    } catch (e) {
+        alert("Error: " + e.message);
     }
 }
 
@@ -236,7 +268,7 @@ async function cargar() {
     const { data, error } = await sb
         .from("articulos")
         .select("*")
-        .neq("estado", "eliminado") /* 🔥 soft delete */
+        .neq("estado", "eliminado")
         .order("fecha_creacion", { ascending: false });
 
     if (error) return console.error(error);
@@ -244,37 +276,22 @@ async function cargar() {
     const lista = $("lista");
     lista.innerHTML = "";
 
-    const labels = {
-        publicado: "Publicado",
-        programado: "Programado",
-        revision: "En revisión",
-        borrador: "No publicado",
-        eliminado: "Eliminado"
-    };
-
     data.forEach(a => {
 
         const card = document.createElement("div");
         card.className = "articleCard";
 
-        const imgHTML = a.imagen
-            ? `<img src="${a.imagen}" class="thumb">`
-            : `<div class="thumb placeholder">Sin imagen</div>`;
-
         card.innerHTML = `
-            ${imgHTML}
-
-            <div class="articleTitle">${a.titulo}</div>
-
-            <div class="status ${a.estado}">
-                ${labels[a.estado]}
-            </div>
-
-            <div class="row">
-                <button class="editBtn">Editar</button>
-                <button class="danger delBtn">Eliminar</button>
-            </div>
-        `;
+      ${a.imagen
+                ? `<img src="${a.imagen}" class="thumb">`
+                : `<div class="thumb placeholder">Sin imagen</div>`}
+      <div class="articleTitle">${a.titulo}</div>
+      <div class="status ${a.estado}">${a.estado}</div>
+      <div class="row">
+        <button class="editBtn">Editar</button>
+        <button class="danger delBtn">Eliminar</button>
+      </div>
+    `;
 
         card.querySelector(".editBtn").onclick = () => editar(a);
         card.querySelector(".delBtn").onclick = () => eliminar(a.id);
@@ -296,72 +313,47 @@ function editar(a) {
     $("resumen").value = a.resumen;
     $("contenido").value = a.contenido;
 
-    /* 🔥 estado */
     estadoActual = a.estado;
-
-    if (estadoSelected) {
-        estadoSelected.innerText = {
-            publicado: "Publicado",
-            programado: "Programado",
-            revision: "En revisión",
-            borrador: "No publicado",
-            eliminado: "Eliminado"
-        }[a.estado];
-    }
+    estadoSelected.innerText = a.estado;
 
     if (a.imagen) {
         preview.src = a.imagen;
         preview.classList.remove("hidden");
     }
 
-    $("formTitle").innerText = "Editar artículo";
-    $("cancelEdit").classList.remove("hidden");
-
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 
 /* =====================================================
-   CANCELAR
+   RESET
 ===================================================== */
-
-$("cancelEdit").onclick = resetForm;
 
 function resetForm() {
 
     editId = null;
     currentFile = null;
+    currentVideos = [];
+    estadoActual = "borrador";
 
     $("titulo").value = "";
     $("resumen").value = "";
     $("contenido").value = "";
 
-    estadoActual = "borrador";
-
-    if (estadoSelected)
-        estadoSelected.innerText = "No publicado";
-
-    fileInput.value = "";
-
     preview.classList.add("hidden");
-    fileName.innerText = "o arrastrar acá";
-
-    $("formTitle").innerText = "Nuevo artículo";
-    $("cancelEdit").classList.add("hidden");
+    videoCount.innerText = "o arrastrar acá";
 }
 
 
 /* =====================================================
-   DELETE (soft)
+   DELETE
 ===================================================== */
 
 async function eliminar(id) {
 
     if (!confirm("Eliminar artículo?")) return;
 
-    /* 🔥 soft delete */
-    await sb
-        .from("articulos")
+    await sb.from("articulos")
         .update({ estado: "eliminado" })
         .eq("id", id);
 

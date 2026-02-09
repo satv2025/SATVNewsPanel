@@ -8,6 +8,8 @@
     <link rel="icon" href="https://solargentinotv.com.ar/assets/media/images/Logo SATV WEB BETA.ico">
 
     <link rel="stylesheet" href="assets/css/base.css">
+    <!-- Datepicker CSS (NO TOCAR) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vanillajs-datepicker@1.3.4/dist/css/datepicker.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
@@ -20,7 +22,6 @@
             <button id="logoutBtn" class="danger hidden">Cerrar sesión</button>
         </header>
 
-
         <!-- LOGIN -->
         <section id="loginBox" class="card login">
             <h2>Ingresar</h2>
@@ -28,7 +29,6 @@
             <input id="password" type="password" placeholder="Password">
             <button id="loginBtn">Entrar</button>
         </section>
-
 
         <!-- DASHBOARD -->
         <section id="dash" class="hidden">
@@ -42,11 +42,9 @@
                 <textarea id="resumen" placeholder="Resumen"></textarea>
                 <textarea id="contenido" rows="8" placeholder="Contenido HTML"></textarea>
 
-
-                <!-- 🔥 REEMPLAZA CHECKBOX POR DROPDOWN CUSTOM -->
+                <!-- Estado (dropdown custom) -->
                 <div class="estadoDropdown" id="estadoDropdown">
                     <div class="estadoSelected" id="estadoSelected">No publicado</div>
-
                     <div class="estadoMenu hidden" id="estadoMenu">
                         <div class="estadoItem" data-value="borrador">No publicado</div>
                         <div class="estadoItem" data-value="revision">En revisión</div>
@@ -57,20 +55,24 @@
                     </div>
                 </div>
 
+                <!-- FECHA DE PUBLICACIÓN CUSTOM -->
+                <label>Fecha de publicación</label>
+                <div class="customDateTime">
+                    <input id="fechaCustomMostrar" class="datePickerInput" placeholder="Seleccionar fecha"
+                        autocomplete="off" readonly>
+                </div>
 
                 <div class="uploadBox" id="uploadBox">
                     <input type="file" id="imagenFile" hidden>
-
                     <div class="uploadInner">
                         📷 Subir imagen
                         <span id="fileName">o arrastrar acá</span>
                     </div>
                 </div>
 
-                <!-- 🔥 VIDEOS (nuevo, mismo estilo que imagen) -->
+                <!-- VIDEOS -->
                 <div class="uploadBox" id="videoUploadBox">
                     <input type="file" id="videosInput" hidden multiple accept="video/*">
-
                     <div class="uploadInner">
                         🎬 Subir videos
                         <span id="videoCount">o arrastrar acá</span>
@@ -91,7 +93,6 @@
 
             </div>
 
-
             <!-- LISTA -->
             <div class="card">
                 <h2>Artículos</h2>
@@ -101,7 +102,9 @@
         </section>
 
     </div>
-
+    <!-- Datepicker JS (NO TOCAR) -->
+    <script src="https://cdn.jsdelivr.net/npm/vanillajs-datepicker@1.3.4/dist/js/datepicker-full.min.js"></script>
+    <!-- Tu script con la lógica: debe ir DESPUÉS del datepicker -->
     <script src="assets/js/operation.js"></script>
 </body>
 

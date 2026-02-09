@@ -127,17 +127,15 @@ textarea:focus {
 button {
     background: white;
     color: var(--primary);
-
     border: 2px solid var(--primary);
-
     padding: 10px 16px;
     border-radius: 8px;
-
     font-weight: 600;
     cursor: pointer;
-
     transition: background .1s, color .1s;
 }
+
+button.danger.delBtn {}
 
 button:hover {
     background: var(--primary);
@@ -153,6 +151,8 @@ button:hover {
     border-color: var(--danger);
     color: var(--danger);
 }
+
+button.danger.delBtn {}
 
 .danger:hover {
     background: var(--danger);
@@ -175,15 +175,12 @@ button:hover {
 ===================================================== */
 .articleCard {
     background: white;
-
     border: 2px solid var(--border-soft);
-
-    border-radius: 8px;
-    padding: 14px;
-
+    border-radius: 12px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    min-height: 250px;
 }
 
 .articleCard:hover {
@@ -191,42 +188,51 @@ button:hover {
 }
 
 .articleCard .row {
-    border-top: 2px solid var(--border-soft);
-    padding-top: 10px;
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1.5px solid var(--border-soft);
 }
 
+.articleCard > *:not(.row) {
+    margin-bottom: 12px;
+}
 
+.articleCard button {
+    padding: 6px 12px;
+    font-size: 12px;
+}
 /* =====================================================
    BADGES (BASE)
 ===================================================== */
 .status {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-
+    gap: 6px;
     width: fit-content;
-
-    font-size: 12px;
-    font-weight: 700;
-
-    padding: 6px 10px;
+    font-size: 11px;          /* más fino */
+    font-weight: 600;         /* menos ladrillo */
+    letter-spacing: .4px;
+    padding: 4px 10px;        /* más compacto */
     border-radius: 999px;
-
-    border: none;
+    line-height: 1;
+    border: 1.5px solid transparent; /* más prolijo que none */
     background: #f3f4f6;
     color: var(--text);
-
-    line-height: 1;
+    margin: 0;
+    margin-left: auto; /* 🔥 lo empuja a la derecha */
 }
 
 /* puntito */
 .status::before {
     content: "";
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
     border-radius: 999px;
     background: currentColor;
-    opacity: .9;
+    opacity: .85;
 }
 
 
@@ -234,39 +240,65 @@ button:hover {
    🔥 NUEVOS ESTADOS (reemplaza ok/draft)
 ===================================================== */
 
+/* ===== Base deportiva común ===== */
+.status {
+    display: inline-block;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 7px 14px;
+    border-radius: 999px; /* pill moderno */
+    font-size: 12px;
+}
+
+
+/* 🟢 Publicado */
 .status.publicado {
-    background: #dcfce7;
-    color: #166534;
+    background: linear-gradient(135deg, #15803d, #22c55e);
+    color: #ffffff;
 }
 
+
+/* ⚽ Deportes */
+.status.deportes {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: #22c55e;
+}
+
+
+/* 🔵 Programado */
 .status.programado {
-    background: #dbeafe;
-    color: #1e40af;
+    background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+    color: #ffffff;
 }
 
+
+/* 🟡 Revisión */
 .status.revision {
-    background: #fef3c7;
-    color: #92400e;
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    color: #ffffff;
 }
 
+
+/* ⚪ Borrador */
 .status.borrador {
-    background: #e5e7eb;
-    color: #374151;
+    background: linear-gradient(135deg, #9ca3af, #d1d5db);
+    color: #111827;
 }
 
+
+/* 🔴 Eliminado */
 .status.eliminado {
-    background: #fee2e2;
-    color: #991b1b;
+    background: linear-gradient(135deg, #b91c1c, #ef4444);
+    color: #ffffff;
 }
-
-
 /* =====================================================
    ROW
 ===================================================== */
 .row {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 
@@ -276,13 +308,11 @@ button:hover {
 .uploadBox {
     border: 2px dashed var(--border);
     border-radius: 8px;
-
     padding: 28px;
-
     text-align: center;
     cursor: pointer;
-
     background: white;
+    margin-bottom: 0.6em;
 }
 
 .uploadBox:hover {
@@ -452,4 +482,45 @@ button:focus {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+.datePickerInput {
+    width: 100%;
+    margin: 8px 0 0 0;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 2px solid var(--border-soft);
+    background: white;
+    color: var(--text);
+    font-size: 15px;
+    font-family: 'Gilroy';
+    cursor: pointer;
+    font-weight: 600;
+    transition: border-color .14s;
+    margin-bottom: 0.5em !important;
+}
+.datePickerInput:focus {
+    border-color: var(--border);
+    outline: none;
+}
+.datepicker-dropdown {
+    font-family: 'Gilroy';
+    border-radius: var(--radius);
+    border: 2px solid var(--border-soft);
+    background: var(--card);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+}
+.datepicker-picker {
+    background: var(--card) !important;
+    color: var(--text);
+    border-radius: var(--radius) !important;
+    border: none;
+}
+
+.datepicker-cell.today.focused:not(.selected) {
+    background-color: #0078d4 !important;
+}
+
+.datepicker-cell.today:not(.selected) {
+    background-color: #0078d4 !important;
 }

@@ -1,4 +1,29 @@
 /* =====================================================
+   CALENDARIO VISUAL SOLO FECHA (Vanilla JS Datepicker)
+===================================================== */
+const inputFecha = document.getElementById('fechaCustomMostrar');
+let fechaCustomValue = null;
+
+// Inicializa calendario visual, SOLO FECHA
+const picker = new Datepicker(inputFecha, {
+    format: "yyyy-mm-dd",
+    autohide: true,
+    todayHighlight: true,
+    language: "es"
+});
+
+// Guarda la fecha seleccionada
+inputFecha.addEventListener('changeDate', function(e) {
+    fechaCustomValue = e.detail.date;
+    if (fechaCustomValue) {
+        const d = fechaCustomValue;
+        const str = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        inputFecha.value = str;
+    }
+});
+
+
+/* =====================================================
    SUPABASE
 ===================================================== */
 
@@ -21,7 +46,7 @@ let estadoActual = "borrador";
 
 
 /* =====================================================
-   🔥 NUEVO — PROGRESS BAR (NO ROMPE NADA)
+   PROGRESS BAR
 ===================================================== */
 
 let progressWrap = null;
@@ -30,7 +55,6 @@ let progressEl = null;
 function ensureProgressUI() {
     if (progressWrap && progressEl) return;
 
-    // lo insertamos dentro del form (si existe), o al final del body como fallback
     const formCard = document.querySelector(".formCard") || document.body;
 
     progressWrap = document.createElement("div");
@@ -43,7 +67,6 @@ function ensureProgressUI() {
 
     progressWrap.appendChild(progressEl);
 
-    // lo ponemos antes de los botones del form si existe, si no al final
     const rowBtns = formCard.querySelector(".row") || null;
     if (rowBtns) formCard.insertBefore(progressWrap, rowBtns);
     else formCard.appendChild(progressWrap);
@@ -56,36 +79,10 @@ function setProgress(val) {
 }
 
 function hideProgressSoon() {
-    if (!progressWrap) return;
     setTimeout(() => {
         progressWrap.style.display = "none";
         progressEl.value = 0;
     }, 600);
-}
-
-
-/* =====================================================
-   🔥 NUEVO — GENERAR THUMBS AUTOMÁTICOS (YOUTUBE STYLE)
-===================================================== */
-
-async function generateThumbs(videoUrl) {
-    try {
-        const res = await fetch("/api/generate-thumbs", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ videoUrl })
-        });
-
-        if (!res.ok) {
-            const txt = await res.text().catch(() => "");
-            throw new Error(`API ${res.status}: ${txt || "sin respuesta"}`);
-        }
-
-        console.log("✅ thumbs generados:", videoUrl);
-
-    } catch (e) {
-        console.error("❌ thumbs error:", e.message || e);
-    }
 }
 
 
@@ -118,7 +115,6 @@ async function login() {
         email: $("email").value,
         password: $("password").value
     });
-
     if (error) return alert(error.message);
     init();
 }
@@ -171,20 +167,12 @@ document.querySelectorAll(".estadoItem").forEach(item => {
    IMAGEN
 ===================================================== */
 
-const uploadBox = $("uploadBox");
-const fileInput = $("imagenFile");
-const preview = $("preview");
+$("uploadBox").onclick = () => $("imagenFile").click();
 
-uploadBox.onclick = () => fileInput.click();
-
-fileInput.onchange = () => {
-    const file = fileInput.files[0];
-    if (!file) return;
-
-    currentFile = file;
-
-    preview.src = URL.createObjectURL(file);
-    preview.classList.remove("hidden");
+$("imagenFile").onchange = e => {
+    currentFile = e.target.files[0];
+    $("preview").src = URL.createObjectURL(currentFile);
+    $("preview").classList.remove("hidden");
 };
 
 
@@ -192,15 +180,11 @@ fileInput.onchange = () => {
    VIDEOS
 ===================================================== */
 
-const videoBox = $("videoUploadBox");
-const videosInput = $("videosInput");
-const videoCount = $("videoCount");
+$("videoUploadBox").onclick = () => $("videosInput").click();
 
-videoBox.onclick = () => videosInput.click();
-
-videosInput.onchange = () => {
-    currentVideos = [...videosInput.files];
-    videoCount.innerText = currentVideos.length + " archivos";
+$("videosInput").onchange = e => {
+    currentVideos = [...e.target.files];
+    $("videoCount").innerText = currentVideos.length + " archivos";
 };
 
 
@@ -213,34 +197,35 @@ async function upload(bucket, file, nameHint) {
     const ext = file.name.split(".").pop();
     const name = `${slugify(nameHint)}-${uid()}.${ext}`;
 
-    const { error } = await sb.storage
-        .from(bucket)
-        .upload(name, file, { upsert: true });
-
-    if (error) throw error;
+    await sb.storage.from(bucket).upload(name, file, { upsert: true });
 
     return sb.storage.from(bucket).getPublicUrl(name).data.publicUrl;
 }
 
 
 /* =====================================================
-   SAVE ARTICLE
+   SAVE ARTICLE (con PROGRESS)
 ===================================================== */
 
 $("saveBtn").onclick = saveArticle;
 
 async function saveArticle() {
-
     try {
-
-        setProgress(5);
+        setProgress(5); // INICIO
 
         let img = null;
 
         if (currentFile) {
-            setProgress(10);
+            setProgress(15); // Antes de subir imagen
             img = await upload("articulos", currentFile, $("titulo").value);
-            setProgress(20);
+            setProgress(30); // Imagen subida
+        }
+
+        // FECHA CUSTOM VISUAL
+        let fecha_creacion = new Date().toISOString();
+        if (inputFecha.value) {
+            fecha_creacion = inputFecha.value + "T00:00:00";
+            fecha_creacion = new Date(fecha_creacion).toISOString();
         }
 
         const payload = {
@@ -248,60 +233,35 @@ async function saveArticle() {
             slug: slugify($("titulo").value),
             resumen: $("resumen").value,
             contenido: $("contenido").value,
-            estado: estadoActual
+            estado: estadoActual,
+            fecha_creacion: fecha_creacion
         };
 
         if (img) payload.imagen = img;
 
         let articuloId;
 
-
-        /* ---------- INSERT / UPDATE ---------- */
-
         if (editId) {
-
-            await sb.from("articulos")
-                .update(payload)
-                .eq("id", editId);
-
+            setProgress(40);
+            await sb.from("articulos").update(payload).eq("id", editId);
             articuloId = editId;
-
-            // borrar videos viejos SOLO en edición
-            await sb.from("articulos_videos")
-                .delete()
-                .eq("articulo_id", articuloId);
-
         } else {
-
+            setProgress(50);
             const { data } = await sb
                 .from("articulos")
                 .insert(payload)
                 .select()
                 .single();
-
             articuloId = data.id;
         }
 
-        setProgress(30);
-
-
-        /* =====================================================
-           🔥 VIDEOS + AUTO THUMBNAILS
-        ===================================================== */
-
+        // Subida de videos con "progreso visual" aprox
         for (let i = 0; i < currentVideos.length; i++) {
-
-            // progreso aproximado (no hay progress real en supabase-js upload)
-            const p1 = 30 + Math.floor((i / Math.max(1, currentVideos.length)) * 50);
-            const p2 = 30 + Math.floor(((i + 1) / Math.max(1, currentVideos.length)) * 50);
-
+            const p1 = 60 + Math.floor((i / Math.max(1, currentVideos.length)) * 30);
+            const p2 = 60 + Math.floor(((i + 1) / Math.max(1, currentVideos.length)) * 30);
             setProgress(p1);
 
-            const url = await upload(
-                "videos-articulos",
-                currentVideos[i],
-                $("titulo").value
-            );
+            const url = await upload("videos-articulos", currentVideos[i], $("titulo").value);
 
             setProgress(p2);
 
@@ -310,12 +270,9 @@ async function saveArticle() {
                 orden: i + 1,
                 url
             });
-
-            // 🔥 GENERA thumbs automáticamente (vercel)
-            await generateThumbs(url);
         }
 
-        setProgress(100);
+        setProgress(100); // Listo
         hideProgressSoon();
 
         resetForm();
@@ -324,7 +281,6 @@ async function saveArticle() {
     } catch (e) {
         hideProgressSoon();
         alert("Error: " + e.message);
-        console.error(e);
     }
 }
 
@@ -335,18 +291,18 @@ async function saveArticle() {
 
 async function cargar() {
 
-    const { data, error } = await sb
+    const { data } = await sb
         .from("articulos")
         .select("*")
         .neq("estado", "eliminado")
         .order("fecha_creacion", { ascending: false });
 
-    if (error) return console.error(error);
-
     const lista = $("lista");
     lista.innerHTML = "";
 
     data.forEach(a => {
+
+        const fecha = new Date(a.fecha_creacion).toLocaleString();
 
         const card = document.createElement("div");
         card.className = "articleCard";
@@ -356,10 +312,11 @@ async function cargar() {
                 ? `<img src="${a.imagen}" class="thumb">`
                 : `<div class="thumb placeholder">Sin imagen</div>`}
       <div class="articleTitle">${a.titulo}</div>
-      <div class="status ${a.estado}">${a.estado}</div>
+      <small>${fecha}</small>
       <div class="row">
         <button class="editBtn">Editar</button>
         <button class="danger delBtn">Eliminar</button>
+        <div class="status ${a.estado}">${a.estado}</div>
       </div>
     `;
 
@@ -387,8 +344,17 @@ function editar(a) {
     estadoSelected.innerText = a.estado;
 
     if (a.imagen) {
-        preview.src = a.imagen;
-        preview.classList.remove("hidden");
+        $("preview").src = a.imagen;
+        $("preview").classList.remove("hidden");
+    }
+
+    // Setear fecha en el picker visual
+    if (a.fecha_creacion) {
+        const fecha = new Date(a.fecha_creacion);
+        const y = fecha.toISOString().split("T")[0];
+        inputFecha.value = y;
+        fechaCustomValue = fecha;
+        picker.setDate(fecha);
     }
 
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -410,22 +376,23 @@ function resetForm() {
     $("resumen").value = "";
     $("contenido").value = "";
 
-    preview.classList.add("hidden");
-    videoCount.innerText = "o arrastrar acá";
+    $("preview").classList.add("hidden");
+
+    // Reset calendario visual
+    inputFecha.value = "";
+    fechaCustomValue = null;
+    picker.setDate(new Date()); // Para que aparezca en hoy por defecto
 }
 
 
 /* =====================================================
-   DELETE
+   ELIMINAR
 ===================================================== */
 
 async function eliminar(id) {
-
-    if (!confirm("Eliminar artículo?")) return;
-
+    if (!confirm("¿Eliminar artículo?")) return;
     await sb.from("articulos")
         .update({ estado: "eliminado" })
         .eq("id", id);
-
     cargar();
 }

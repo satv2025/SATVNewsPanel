@@ -1,7 +1,7 @@
 /* =====================================================
    CALENDARIO VISUAL SOLO FECHA (Vanilla JS Datepicker)
 ===================================================== */
-const inputFecha = document.getElementById('fechaCustomMostrar');
+const inputFecha = document.getElementById("fechaCustomMostrar");
 let fechaCustomValue = null;
 
 const picker = new Datepicker(inputFecha, {
@@ -11,11 +11,11 @@ const picker = new Datepicker(inputFecha, {
     language: "es"
 });
 
-inputFecha.addEventListener('changeDate', function (e) {
+inputFecha.addEventListener("changeDate", function (e) {
     fechaCustomValue = e.detail.date;
     if (fechaCustomValue) {
         const d = fechaCustomValue;
-        const str = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const str = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
         inputFecha.value = str;
     }
 });
@@ -37,52 +37,52 @@ const $ = id => document.getElementById(id);
 ===================================================== */
 let editId = null;
 let currentFile = null;
-let currentVideos = []; // modo normal (sin señales)
+let currentVideos = [];
 let estadoActual = "borrador";
 
-// para edición (detectar cambios)
+// para edición
 let prevUsaDropdown = false;
 let prevGroupIds = [];
 
 
 /* =====================================================
-   PROGRESS BAR (barra simple)
+   PROGRESS BAR CUSTOM
 ===================================================== */
 let progressWrap = null;
-let progressEl = null;
+let progressFill = null;
+let progressText = null;
 
 function ensureProgressUI() {
-    if (progressWrap && progressEl) return;
+    if (progressWrap && progressFill && progressText) return;
 
-    const formCard = document.querySelector(".formCard") || document.body;
-
-    progressWrap = document.createElement("div");
-    progressWrap.className = "progress-bar";
-    progressWrap.style.display = "none";
-
-    progressEl = document.createElement("progress");
-    progressEl.max = 100;
-    progressEl.value = 0;
-
-    progressWrap.appendChild(progressEl);
-
-    const rowBtns = formCard.querySelector(".row") || null;
-    if (rowBtns) formCard.insertBefore(progressWrap, rowBtns);
-    else formCard.appendChild(progressWrap);
+    progressWrap = $("uploadProgressBox");
+    progressFill = $("uploadProgressFill");
+    progressText = $("uploadText");
 }
 
-function setProgress(val) {
+function setProgress(val, text = null) {
     ensureProgressUI();
-    progressWrap.style.display = "block";
-    progressEl.value = Math.max(0, Math.min(100, val));
+    if (!progressWrap || !progressFill || !progressText) return;
+
+    const safeVal = Math.max(0, Math.min(100, val));
+    progressWrap.classList.remove("hidden");
+    progressFill.style.width = `${safeVal}%`;
+    progressText.innerText = text || `Subiendo… ${safeVal}%`;
 }
 
-function hideProgressSoon() {
+function resetProgressUI() {
+    ensureProgressUI();
+    if (!progressWrap || !progressFill || !progressText) return;
+
+    progressWrap.classList.add("hidden");
+    progressFill.style.width = "0%";
+    progressText.innerText = "Subiendo… 0%";
+}
+
+function hideProgressSoon(delay = 700) {
     setTimeout(() => {
-        if (!progressWrap) return;
-        progressWrap.style.display = "none";
-        progressEl.value = 0;
-    }, 600);
+        resetProgressUI();
+    }, delay);
 }
 
 
@@ -106,6 +106,10 @@ function isValidSignalId(id) {
     return /^[a-z0-9][a-z0-9-]*$/.test(id);
 }
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 
 /* =====================================================
    AUTH
@@ -118,6 +122,7 @@ async function login() {
         email: $("email").value,
         password: $("password").value
     });
+
     if (error) return alert(error.message);
     init();
 }
@@ -168,7 +173,14 @@ document.querySelectorAll(".estadoItem").forEach(item => {
 $("uploadBox").onclick = () => $("imagenFile").click();
 
 $("imagenFile").onchange = e => {
-    currentFile = e.target.files[0];
+    currentFile = e.target.files[0] || null;
+
+    if (!currentFile) {
+        $("preview").src = "";
+        $("preview").classList.add("hidden");
+        return;
+    }
+
     $("preview").src = URL.createObjectURL(currentFile);
     $("preview").classList.remove("hidden");
 };
@@ -185,8 +197,11 @@ $("videosInput").onchange = e => {
         $("videosInput").value = "";
         return;
     }
+
     currentVideos = [...e.target.files];
-    $("videoCount").innerText = currentVideos.length + " archivos";
+    $("videoCount").innerText = currentVideos.length
+        ? `${currentVideos.length} archivos`
+        : "o arrastrar acá";
 };
 
 
@@ -206,11 +221,6 @@ async function upload(bucket, file, nameHint) {
 
 /* =====================================================
    SWITCH 100% CUSTOM (sin checkbox)
-   Requiere en HTML:
-   <div id="useSignalsDropdown" class="signalsSwitch" role="switch" aria-checked="false" tabindex="0">
-     <span class="signalsSwitchUI"></span>
-     <span class="signalsSwitchText">...</span>
-   </div>
 ===================================================== */
 function setSignalsSwitch(on) {
     const sw = $("useSignalsDropdown");
@@ -226,7 +236,6 @@ function setSignalsSwitch(on) {
         else box.classList.remove("signalsBoxAppear");
     }
 
-    // si activo señales, limpio videos normales
     if (on) {
         currentVideos = [];
         $("videosInput").value = "";
@@ -243,13 +252,11 @@ function hookSignalsUI() {
     const sw = $("useSignalsDropdown");
     if (!sw) return;
 
-    // click
     sw.addEventListener("click", () => {
         setSignalsSwitch(!getSignalsEnabled());
     });
 
-    // teclado (Enter / Space)
-    sw.addEventListener("keydown", (e) => {
+    sw.addEventListener("keydown", e => {
         if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             setSignalsSwitch(!getSignalsEnabled());
@@ -280,28 +287,28 @@ function addSignalBlock({ label, id, existingCount }) {
     wrap._files = [];
 
     wrap.innerHTML = `
-    <div class="signalMeta">
-      <input class="signalLabel" placeholder="Nombre señal (visible). Ej: TNT Sports Premium" value="${label || ""}">
-      <input class="signalId" placeholder="ID señal (manual). Ej: tntsports" value="${id || ""}">
-    </div>
+        <div class="signalMeta">
+            <input class="signalLabel" placeholder="Nombre señal (visible). Ej: TNT Sports Premium" value="${label || ""}">
+            <input class="signalId" placeholder="ID señal (manual). Ej: tntsports" value="${id || ""}">
+        </div>
 
-    <div class="uploadBox signalVideoUpload">
-      <input type="file" class="signalVideosInput" hidden multiple accept="video/*">
-      <div class="uploadInner">
-        🎬 Subir videos de esta señal
-        <span class="signalVideoCount">o arrastrar acá</span>
-      </div>
-    </div>
+        <div class="uploadBox signalVideoUpload">
+            <input type="file" class="signalVideosInput" hidden multiple accept="video/*">
+            <div class="uploadInner">
+                🎬 Subir videos de esta señal
+                <span class="signalVideoCount">o arrastrar acá</span>
+            </div>
+        </div>
 
-    <div class="existingInfo">
-      ${existingCount ? `Videos ya guardados: <b>${existingCount}</b> (si subís nuevos, reemplaza)` : `Sin videos guardados aún`}
-    </div>
+        <div class="existingInfo">
+            ${existingCount ? `Videos ya guardados: <b>${existingCount}</b> (si subís nuevos, reemplaza)` : "Sin videos guardados aún"}
+        </div>
 
-    <div class="signalActions">
-      <button type="button" class="secondary fillIdBtn">Autogenerar ID</button>
-      <button type="button" class="danger removeSignalBtn">Eliminar señal</button>
-    </div>
-  `;
+        <div class="signalActions">
+            <button type="button" class="secondary fillIdBtn">Autogenerar ID</button>
+            <button type="button" class="danger removeSignalBtn">Eliminar señal</button>
+        </div>
+    `;
 
     $("signalsContainer").appendChild(wrap);
 
@@ -323,7 +330,9 @@ function addSignalBlock({ label, id, existingCount }) {
 
     input.onchange = e => {
         wrap._files = [...e.target.files];
-        count.innerText = `${wrap._files.length} archivos`;
+        count.innerText = wrap._files.length
+            ? `${wrap._files.length} archivos`
+            : "o arrastrar acá";
     };
 
     wrap.querySelector(".removeSignalBtn").onclick = () => wrap.remove();
@@ -356,13 +365,13 @@ if ($("cancelEdit")) {
 
 async function saveArticle() {
     try {
-        setProgress(5);
+        setProgress(5, "Preparando carga...");
 
         let img = null;
         if (currentFile) {
-            setProgress(15);
+            setProgress(15, "Subiendo imagen...");
             img = await upload("articulos", currentFile, $("titulo").value);
-            setProgress(30);
+            setProgress(30, "Imagen subida");
         }
 
         let fecha_creacion = new Date().toISOString();
@@ -376,11 +385,15 @@ async function saveArticle() {
 
         if (signalsEnabled) {
             const content = $("contenido").value || "";
+
             if (!content.includes("{s-dropdown}")) {
+                resetProgressUI();
                 alert("Si activás señales, en el contenido debe estar {s-dropdown}.");
                 return;
             }
+
             if (!dropdownTitle) {
+                resetProgressUI();
                 alert("Poné un título para el selector (ej: Elegí la señal).");
                 return;
             }
@@ -402,18 +415,17 @@ async function saveArticle() {
         let articuloId;
 
         if (editId) {
-            setProgress(40);
+            setProgress(40, "Actualizando artículo...");
             const { error } = await sb.from("articulos").update(payload).eq("id", editId);
             if (error) throw error;
             articuloId = editId;
         } else {
-            setProgress(50);
+            setProgress(50, "Guardando artículo...");
             const { data, error } = await sb.from("articulos").insert(payload).select().single();
             if (error) throw error;
             articuloId = data.id;
         }
 
-        // si cambió el modo, borramos videos para no mezclar
         if (editId && prevUsaDropdown !== signalsEnabled) {
             await sb.from("articulos_videos").delete().eq("articulo_id", articuloId);
             prevGroupIds = [];
@@ -423,34 +435,33 @@ async function saveArticle() {
             const blocks = readSignalsBlocks().filter(b => b.label && b.id);
 
             if (blocks.length === 0) {
+                resetProgressUI();
                 alert("Agregá al menos 1 señal con Nombre e ID.");
                 return;
             }
 
-            // validar IDs
             for (const b of blocks) {
                 if (!isValidSignalId(b.id)) {
+                    resetProgressUI();
                     alert(`ID inválido "${b.id}". Usá minúsculas/números/guión. Ej: tntsports / espn-premium`);
                     return;
                 }
             }
 
-            // IDs únicos
             const ids = blocks.map(b => b.id);
             const dup = ids.find((id, idx) => ids.indexOf(id) !== idx);
             if (dup) {
+                resetProgressUI();
                 alert("Tenés IDs repetidos: " + dup);
                 return;
             }
 
-            // detectar señales removidas (en edición)
             const currentIds = blocks.map(b => b.id);
             const removed = prevGroupIds.filter(oldId => !currentIds.includes(oldId));
             for (const rid of removed) {
                 await sb.from("articulos_videos").delete().eq("articulo_id", articuloId).eq("grupo", rid);
             }
 
-            // si el ID cambió (prevId -> id), renombrar grupo
             for (const b of blocks) {
                 if (b.prevId && b.prevId !== b.id) {
                     await sb.from("articulos_videos")
@@ -462,32 +473,31 @@ async function saveArticle() {
                 }
             }
 
-            // subir/reemplazar por señal SOLO si hay files
             const totalNew = blocks.reduce((acc, b) => acc + (b.files.length || 0), 0);
             let uploaded = 0;
 
             for (const b of blocks) {
-                // siempre actualizo label (por si lo cambió)
                 await sb.from("articulos_videos")
                     .update({ label_grupo: b.label })
                     .eq("articulo_id", articuloId)
                     .eq("grupo", b.id);
 
-                // si no hay nuevos, no reemplazo
                 if (!b.files.length) continue;
 
-                // reemplaza la señal completa
-                await sb.from("articulos_videos").delete().eq("articulo_id", articuloId).eq("grupo", b.id);
+                await sb.from("articulos_videos")
+                    .delete()
+                    .eq("articulo_id", articuloId)
+                    .eq("grupo", b.id);
 
                 for (let i = 0; i < b.files.length; i++) {
                     const p1 = 60 + Math.floor((uploaded / Math.max(1, totalNew)) * 30);
-                    setProgress(p1);
+                    setProgress(p1, `Subiendo videos... ${uploaded}/${totalNew}`);
 
                     const url = await upload("videos-articulos", b.files[i], $("titulo").value);
 
                     uploaded++;
                     const p2 = 60 + Math.floor((uploaded / Math.max(1, totalNew)) * 30);
-                    setProgress(p2);
+                    setProgress(p2, `Subiendo videos... ${uploaded}/${totalNew}`);
 
                     const { error } = await sb.from("articulos_videos").insert({
                         articulo_id: articuloId,
@@ -496,6 +506,7 @@ async function saveArticle() {
                         grupo: b.id,
                         label_grupo: b.label
                     });
+
                     if (error) throw error;
                 }
             }
@@ -504,18 +515,21 @@ async function saveArticle() {
             prevGroupIds = blocks.map(b => b.id);
 
         } else {
-            // modo normal: solo reemplaza si cargaste nuevos
             if (currentVideos.length > 0) {
-                await sb.from("articulos_videos").delete().eq("articulo_id", articuloId).is("grupo", null);
+                await sb.from("articulos_videos")
+                    .delete()
+                    .eq("articulo_id", articuloId)
+                    .is("grupo", null);
 
                 for (let i = 0; i < currentVideos.length; i++) {
                     const p1 = 60 + Math.floor((i / Math.max(1, currentVideos.length)) * 30);
                     const p2 = 60 + Math.floor(((i + 1) / Math.max(1, currentVideos.length)) * 30);
-                    setProgress(p1);
+
+                    setProgress(p1, `Subiendo videos... ${i}/${currentVideos.length}`);
 
                     const url = await upload("videos-articulos", currentVideos[i], $("titulo").value);
 
-                    setProgress(p2);
+                    setProgress(p2, `Subiendo videos... ${i + 1}/${currentVideos.length}`);
 
                     const { error } = await sb.from("articulos_videos").insert({
                         articulo_id: articuloId,
@@ -524,6 +538,7 @@ async function saveArticle() {
                         grupo: null,
                         label_grupo: null
                     });
+
                     if (error) throw error;
                 }
             }
@@ -532,14 +547,15 @@ async function saveArticle() {
             prevGroupIds = [];
         }
 
-        setProgress(100);
-        hideProgressSoon();
+        setProgress(100, "Carga completa");
+        await sleep(500);
 
         resetForm();
-        cargar();
+        await cargar();
 
     } catch (e) {
-        hideProgressSoon();
+        setProgress(100, "Error en la carga");
+        hideProgressSoon(900);
         alert("Error: " + (e?.message || e));
     }
 }
@@ -567,17 +583,17 @@ async function cargar() {
         card.className = "articleCard";
 
         card.innerHTML = `
-      ${a.imagen
+            ${a.imagen
                 ? `<img src="${a.imagen}" class="thumb">`
                 : `<div class="thumb placeholder">Sin imagen</div>`}
-      <div class="articleTitle">${a.titulo}</div>
-      <small>${fecha}</small>
-      <div class="row">
-        <button class="editBtn">Editar</button>
-        <button class="danger delBtn">Eliminar</button>
-        <div class="status ${a.estado}">${a.estado}</div>
-      </div>
-    `;
+            <div class="articleTitle">${a.titulo}</div>
+            <small>${fecha}</small>
+            <div class="row">
+                <button class="editBtn">Editar</button>
+                <button class="danger delBtn">Eliminar</button>
+                <div class="status ${a.estado}">${a.estado}</div>
+            </div>
+        `;
 
         card.querySelector(".editBtn").onclick = () => editarArticulo(a.id);
         card.querySelector(".delBtn").onclick = () => eliminar(a.id);
@@ -607,6 +623,7 @@ async function editarArticulo(id) {
         $("preview").src = a.imagen;
         $("preview").classList.remove("hidden");
     } else {
+        $("preview").src = "";
         $("preview").classList.add("hidden");
     }
 
@@ -618,19 +635,18 @@ async function editarArticulo(id) {
         picker.setDate(fecha);
     }
 
-    // preparar UI
     if ($("cancelEdit")) $("cancelEdit").classList.remove("hidden");
 
-    // reset videos normales
+    currentFile = null;
+    $("imagenFile").value = "";
+
     currentVideos = [];
     $("videosInput").value = "";
     $("videoCount").innerText = "o arrastrar acá";
 
-    // set prev
     prevUsaDropdown = !!a.usa_dropdown;
     prevGroupIds = [];
 
-    // cargar videos del artículo
     const { data: vids } = await sb
         .from("articulos_videos")
         .select("*")
@@ -640,16 +656,21 @@ async function editarArticulo(id) {
 
     const videos = vids || [];
 
-    // señales
     setSignalsSwitch(!!a.usa_dropdown);
     $("signalsDropdownTitle").value = a.dropdown_titulo || "";
     $("signalsContainer").innerHTML = "";
 
     if (a.usa_dropdown) {
         const groups = {};
+
         for (const v of videos) {
             if (!v.grupo) continue;
-            if (!groups[v.grupo]) groups[v.grupo] = { label: v.label_grupo || v.grupo, count: 0 };
+            if (!groups[v.grupo]) {
+                groups[v.grupo] = {
+                    label: v.label_grupo || v.grupo,
+                    count: 0
+                };
+            }
             groups[v.grupo].count++;
         }
 
@@ -682,21 +703,24 @@ function resetForm() {
     $("resumen").value = "";
     $("contenido").value = "";
 
+    estadoSelected.innerText = "No publicado";
+
+    $("imagenFile").value = "";
+    $("preview").src = "";
     $("preview").classList.add("hidden");
 
-    // Reset calendario
     inputFecha.value = "";
     fechaCustomValue = null;
     picker.setDate(new Date());
 
-    // Reset videos
     $("videosInput").value = "";
     $("videoCount").innerText = "o arrastrar acá";
 
-    // Reset señales
     clearSignalsUI();
 
     if ($("cancelEdit")) $("cancelEdit").classList.add("hidden");
+
+    resetProgressUI();
 }
 
 
@@ -706,7 +730,8 @@ function resetForm() {
 async function eliminar(id) {
     if (!confirm("¿Eliminar artículo?")) return;
 
-    const { error } = await sb.from("articulos")
+    const { error } = await sb
+        .from("articulos")
         .update({ estado: "eliminado" })
         .eq("id", id);
 

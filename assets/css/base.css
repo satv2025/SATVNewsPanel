@@ -135,8 +135,6 @@ button {
     transition: background .1s, color .1s;
 }
 
-button.danger.delBtn {}
-
 button:hover {
     background: var(--primary);
     color: white;
@@ -151,8 +149,6 @@ button:hover {
     border-color: var(--danger);
     color: var(--danger);
 }
-
-button.danger.delBtn {}
 
 .danger:hover {
     background: var(--danger);
@@ -523,4 +519,198 @@ button:focus {
 
 .datepicker-cell.today:not(.selected) {
     background-color: #0078d4 !important;
+}
+
+/* =====================================================
+   🔥 NUEVO: SEÑALES + SWITCH 100% CUSTOM (SIN CHECKBOX)
+===================================================== */
+
+.signalsCard {
+    border: 2px solid var(--border-soft);
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+    padding: 14px;
+    margin-top: 12px;
+}
+
+.signalsHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.signalsHint {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.signalsHint b {
+    color: var(--text);
+}
+
+/* ===== SWITCH CUSTOM (div role="switch") ===== */
+.signalsSwitch {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 800;
+    letter-spacing: .2px;
+    padding: 8px 10px;
+    border-radius: 14px;
+    border: 2px solid var(--border-soft);
+    background: #fff;
+    transition: border-color .15s ease, transform .08s ease, background .15s ease;
+}
+
+.signalsSwitch:active {
+    transform: scale(0.99);
+}
+
+.signalsSwitch:focus {
+    outline: none;
+    border-color: var(--border);
+    box-shadow: 0 0 0 4px rgba(0, 120, 212, .12);
+}
+
+/* track */
+.signalsSwitchUI {
+    width: 56px;
+    height: 30px;
+    border-radius: 999px;
+    border: 2px solid var(--border-soft);
+    background: #eef2ff;
+    position: relative;
+    transition: background .15s ease, border-color .15s ease;
+    flex: 0 0 auto;
+}
+
+/* bolita */
+.signalsSwitchUI::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    transform: translateY(-50%);
+    background: #ffffff;
+    border: 2px solid rgba(0, 0, 0, .05);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
+    transition: left .15s ease;
+}
+
+.signalsSwitchText {
+    color: var(--text);
+    font-size: 14px;
+}
+
+/* ON */
+.signalsSwitch.is-on {
+    border-color: var(--border);
+    background: rgba(0, 120, 212, .06);
+}
+
+.signalsSwitch.is-on .signalsSwitchUI {
+    background: rgba(0, 120, 212, .18);
+    border-color: var(--border);
+}
+
+.signalsSwitch.is-on .signalsSwitchUI::after {
+    left: 28px;
+}
+
+/* BOX config señales */
+.signalsBox {
+    margin-top: 12px;
+    border: 2px solid var(--border-soft);
+    border-radius: 14px;
+    background: #fff;
+    padding: 14px;
+}
+
+.signalsBoxAppear {
+    animation: signalsFade .15s ease;
+}
+
+@keyframes signalsFade {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* contenedor señales */
+#signalsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+/* bloque señal */
+.signalBlock {
+    border: 2px solid var(--border-soft);
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+    padding: 14px;
+}
+
+.signalMeta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.signalMeta .signalLabel {
+    flex: 1;
+    min-width: 220px;
+    font-weight: 800;
+}
+
+.signalMeta .signalId {
+    width: 220px;
+    font-weight: 800;
+}
+
+.signalVideoUpload {
+    margin-top: 10px;
+    border-color: rgba(0, 120, 212, .55);
+}
+
+.signalVideoUpload:hover {
+    background: rgba(0, 120, 212, .05);
+}
+
+.existingInfo {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.signalActions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.signalActions button {
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 12px;
+}
+
+#addSignalBtn {
+    margin-top: 12px;
+    border-radius: 999px;
 }

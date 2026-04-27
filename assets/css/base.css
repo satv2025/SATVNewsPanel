@@ -11,10 +11,10 @@
     --bg: #f6f7fb;
     --card: #ffffff;
 
-    --primary: #0078d4;
+    --primary: #ff8f43;
 
-    --border: #0078d4;
-    --border-soft: #0078d4;
+    --border: #ff8f43;
+    --border-soft: #ff8f43;
 
     --danger: #ef4444;
 
@@ -467,7 +467,7 @@ button:focus {
     height: 100%;
     width: 0%;
     border-radius: 999px;
-    background: linear-gradient(90deg, #0078d4 0%, #36a3ff 100%);
+    background: linear-gradient(90deg, #ff8f43 0%, #36a3ff 100%);
     transition: width .18s ease;
 }
 
@@ -521,11 +521,11 @@ button:focus {
 }
 
 .datepicker-cell.today.focused:not(.selected) {
-    background-color: #0078d4 !important;
+    background-color: #ff8f43 !important;
 }
 
 .datepicker-cell.today:not(.selected) {
-    background-color: #0078d4 !important;
+    background-color: #ff8f43 !important;
 }
 
 /* =====================================================
